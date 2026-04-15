@@ -1,0 +1,36 @@
+export default {
+    name: "Kick",
+    triggers: ["kick", "remove"],
+    code: async (ctx) => {
+        const isGroup = ctx.msg.key.remoteJid.endsWith('@g.us');
+        if (!isGroup) return ctx.reply("This command only works in groups.");
+
+        const sender = ctx.msg.key.participant || ctx.msg.key.remoteJid;
+        const groupMetadata = await ctx.sock.groupMetadata(ctx.msg.key.remoteJid);
+        const senderParticipant = groupMetadata.participants.find(p => p.id === sender);
+        
+        if (!senderParticipant?.admin) {
+            return ctx.reply("You need admin privileges to kick members.");
+        }
+
+        let targetJid = null;
+        if (ctx.msg.message?.extendedTextMessage?.contextInfo?.mentionedJid) {
+            targetJid = ctx.msg.message.extendedTextMessage.contextInfo.mentionedJid[0];
+        } else if (ctx.args[0]?.includes('@')) {
+            targetJid = ctx.args[0] + '@s.whatsapp.net';
+        }
+
+        if (!targetJid) return ctx.reply("Mention the user or provide their number. Example: .kick @user");
+
+        const botJid = ctx.sock.user.id;
+        const botParticipant = groupMetadata.participants.find(p => p.id === botJid);
+        if (!botParticipant?.admin) return ctx.reply("I need admin privileges to kick members.");
+
+        try {
+            await ctx.sock.groupParticipantsUpdate(ctx.msg.key.remoteJid, [targetJid], "remove");
+            await ctx.reply(`✅ User removed from group.`);
+        } catch (e) {
+            await ctx.reply("Failed to remove user. They may be an admin.");
+        }
+    }
+};
