@@ -1,0 +1,30 @@
+import util from 'util';
+
+export default {
+    name: "Eval",
+    triggers: ["eval", ">", "$"],
+    code: async (ctx) => {
+        const sender = ctx.msg.key.participant || ctx.msg.key.remoteJid;
+        const ownerJid = ctx.config.OWNER_NUMBER;
+        
+        if (sender !== ownerJid) {
+            return ctx.reply("This command is restricted to the bot owner.");
+        }
+
+        if (ctx.args.length === 0) {
+            return ctx.reply("Provide JavaScript code to evaluate.");
+        }
+
+        const code = ctx.args.join(' ');
+        
+        try {
+            let result = eval(code);
+            if (result instanceof Promise) result = await result;
+            if (typeof result !== 'string') result = util.inspect(result, { depth: 0 });
+            
+            await ctx.reply(`📥 *Input:*\n\`\`\`js\n${code}\n\`\`\`\n📤 *Output:*\n\`\`\`\n${result}\n\`\`\``);
+        } catch (e) {
+            await ctx.reply(`❌ *Error:*\n\`\`\`\n${e.message}\n\`\`\``);
+        }
+    }
+};
